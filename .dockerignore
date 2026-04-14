@@ -1,0 +1,22 @@
+# Keep the build context small — only app source goes into the image
+
+.env
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Tests don't belong in the production image
+tests/
+
+# Infrastructure config is mounted at runtime, not baked in
+infra/
+
+.git/
+.gitignore
+*.md

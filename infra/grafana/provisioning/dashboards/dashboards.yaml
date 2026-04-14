@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: Forecast Dashboards
+    type: file
+    disableDeletion: true             # prevent accidental deletion from UI
+    updateIntervalSeconds: 30         # hot-reload if JSON changes on disk
+    allowUiUpdates: false             # changes must go through version control
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: true

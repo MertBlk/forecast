@@ -1,0 +1,19 @@
+apiVersion: 1
+
+datasources:
+  - name: ClickHouse
+    type: grafana-clickhouse-datasource
+    uid: forecast-clickhouse          # fixed UID so dashboard JSON can reference it
+    isDefault: true
+    editable: false                   # prevent accidental changes in the UI
+
+    jsonData:
+      host:     clickhouse            # Docker Compose service name
+      port:     9000                  # native TCP port (faster than HTTP for queries)
+      username: ${CLICKHOUSE_USER:-default}
+      defaultDatabase: billing
+      # dialects: use native protocol for performance
+      protocol: native
+
+    secureJsonData:
+      password: ${CLICKHOUSE_PASSWORD:-}

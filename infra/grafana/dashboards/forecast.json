@@ -1,0 +1,206 @@
+{
+  "__inputs": [],
+  "__requires": [
+    { "type": "datasource", "id": "grafana-clickhouse-datasource", "version": "4.0.0" }
+  ],
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+
+    {
+      "id": 1,
+      "title": "Forecast Predictions with Confidence Intervals",
+      "description": "Predicted cost per month with 90% confidence bands. Wider bands = higher uncertainty (sqrt(h) model).",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 0 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "forecast-clickhouse" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "custom": { "lineWidth": 2, "fillOpacity": 10, "spanNulls": false }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "lower_ci" },
+            "properties": [
+              { "id": "custom.lineStyle", "value": { "dash": [4,4], "fill": "dash" } },
+              { "id": "custom.lineWidth", "value": 1 },
+              { "id": "color", "value": { "fixedColor": "#73BF69", "mode": "fixed" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "upper_ci" },
+            "properties": [
+              { "id": "custom.lineStyle", "value": { "dash": [4,4], "fill": "dash" } },
+              { "id": "custom.lineWidth", "value": 1 },
+              { "id": "color", "value": { "fixedColor": "#FF7383", "mode": "fixed" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "predicted" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "#5794F2", "mode": "fixed" } },
+              { "id": "custom.lineWidth", "value": 3 }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "tooltip": { "mode": "multi", "sort": "none" },
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "forecast-clickhouse" },
+          "rawSql": "SELECT\n  forecast_month AS time,\n  avg(predicted)  AS predicted,\n  avg(lower_ci)   AS lower_ci,\n  avg(upper_ci)   AS upper_ci\nFROM billing.forecast_results\nWHERE project_id = '$project_id'\n  AND created_at >= now() - INTERVAL 30 DAY\nGROUP BY forecast_month\nORDER BY forecast_month ASC",
+          "format": "time_series",
+          "refId": "A"
+        }
+      ]
+    },
+
+    {
+      "id": 2,
+      "title": "VM Type Cost Trend",
+      "description": "Monthly cost breakdown by VM type. Use this to identify which VM types are driving growth.",
+      "type": "barchart",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 9 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "forecast-clickhouse" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "custom": { "fillOpacity": 80, "lineWidth": 1 }
+        },
+        "overrides": []
+      },
+      "options": {
+        "barWidth": 0.7,
+        "groupWidth": 0.7,
+        "stacking": "normal",
+        "tooltip": { "mode": "multi", "sort": "desc" },
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "forecast-clickhouse" },
+          "rawSql": "SELECT\n  billing_month AS time,\n  vm_type,\n  sum(cost_usd) AS cost\nFROM billing.vm_billing\nWHERE project_id = '$project_id'\n  AND billing_month >= toDate(now()) - INTERVAL $months MONTH\nGROUP BY billing_month, vm_type\nORDER BY billing_month ASC, cost DESC",
+          "format": "time_series",
+          "refId": "B"
+        }
+      ]
+    },
+
+    {
+      "id": 3,
+      "title": "Forecast Accuracy (MAPE History)",
+      "description": "Walk-forward MAPE over time per algorithm. < 5% = Excellent, 5-10% = Good, > 20% = investigate.",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 9 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "forecast-clickhouse" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "custom": { "lineWidth": 2 },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green",  "value": null },
+              { "color": "yellow", "value": 5 },
+              { "color": "orange", "value": 10 },
+              { "color": "red",    "value": 20 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": { "mode": "multi", "sort": "none" },
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "forecast-clickhouse" },
+          "rawSql": "SELECT\n  created_at  AS time,\n  algorithm,\n  mape_score\nFROM billing.forecast_results\nWHERE project_id = '$project_id'\nORDER BY created_at ASC",
+          "format": "time_series",
+          "refId": "C"
+        }
+      ]
+    },
+
+    {
+      "id": 4,
+      "title": "Cross-Project Cost Ranking",
+      "description": "Total spend per project for the selected period. Identifies highest-cost customers.",
+      "type": "barchart",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 18 },
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "forecast-clickhouse" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "custom": { "fillOpacity": 80 }
+        },
+        "overrides": []
+      },
+      "options": {
+        "barWidth": 0.6,
+        "tooltip": { "mode": "single", "sort": "desc" },
+        "xField": "project_id",
+        "legend": { "displayMode": "hidden", "showLegend": false },
+        "orientation": "horizontal"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "forecast-clickhouse" },
+          "rawSql": "SELECT\n  project_id,\n  sum(cost_usd) AS total_cost\nFROM billing.vm_billing\nWHERE billing_month >= toDate(now()) - INTERVAL $months MONTH\nGROUP BY project_id\nORDER BY total_cost DESC\nLIMIT 20",
+          "format": "table",
+          "refId": "D"
+        }
+      ]
+    }
+
+  ],
+
+  "templating": {
+    "list": [
+      {
+        "name": "project_id",
+        "label": "Project",
+        "type": "query",
+        "datasource": { "type": "grafana-clickhouse-datasource", "uid": "forecast-clickhouse" },
+        "query": "SELECT DISTINCT project_id FROM billing.vm_billing ORDER BY project_id",
+        "refresh": 2,
+        "sort": 1,
+        "multi": false,
+        "includeAll": false,
+        "current": {}
+      },
+      {
+        "name": "months",
+        "label": "History (months)",
+        "type": "custom",
+        "query": "3,6,12,24",
+        "current": { "text": "12", "value": "12" },
+        "options": [
+          { "text": "3",  "value": "3"  },
+          { "text": "6",  "value": "6"  },
+          { "text": "12", "value": "12", "selected": true },
+          { "text": "24", "value": "24" }
+        ],
+        "multi": false,
+        "includeAll": false
+      }
+    ]
+  },
+
+  "time": { "from": "now-12M", "to": "now+3M" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "VM Billing Forecast",
+  "uid": "vm-billing-forecast",
+  "version": 1,
+  "weekStart": ""
+}
