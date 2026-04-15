@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     app_env: str = "development"
     cache_ttl_seconds: int = 3600
     forecast_max_horizon: int = 12
+    mock_mode: bool = False  # demo mode — use fake data when DB unavailable
 
     # ── Derived property — build the async SQLAlchemy URL ───────────
     @property

@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="tr" class="dark-mode">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Forecast Studio</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="hero card reveal">
+        <div>
+          <p class="eyebrow">Forecast Service</p>
+          <h1>Forecast Studio</h1>
+          <p class="subtitle">
+            Proje bazli aylik maliyet tahmini olustur, guven araligini gor ve sonuclari hizlica gozden gecir.
+          </p>
+        </div>
+        <div class="hero-actions">
+          <span id="statusBadge" class="status status-pending">API kontrol ediliyor...</span>
+        </div>
+      </header>
+
+    <script>
+      console.log("✓ Inline script executed");
+      console.log("   - darkModeToggle element:", document.getElementById("darkModeToggle"));
+      console.log("   - theme-icon element:", document.querySelector(".theme-icon"));
+    </script>
+
+      <section class="card view-switch reveal">
+        <button class="tab-button is-active" type="button" data-view="forecast">Forecast</button>
+        <button class="tab-button" type="button" data-view="analytics">Analytics</button>
+      </section>
+
+      <section id="forecastView" class="view is-active">
+        <section class="card form-card reveal">
+          <form id="forecastForm">
+            <div class="field-grid">
+              <label class="field">
+                <span>Proje</span>
+                <select id="projectId" name="project_id" required>
+                  <option value="">-- Proje Seç --</option>
+                  <option value="proj-backend">Backend Servisleri</option>
+                  <option value="proj-mobile">Mobile Uygulaması</option>
+                  <option value="proj-data-pipeline">Data Pipeline</option>
+                  <option value="proj-ml-infra">ML Infrastructure</option>
+                  <option value="proj-devops">DevOps Altyapısı</option>
+                </select>
+              </label>
+
+              <label class="field">
+                <span>Horizon (ay)</span>
+                <input id="horizon" name="horizon" type="number" min="1" max="12" value="3" required />
+              </label>
+
+              <label class="field">
+                <span>History (ay)</span>
+                <input id="historyMonths" name="history_months" type="number" min="3" max="36" value="12" required />
+              </label>
+
+              <label class="field">
+                <span>Algoritma</span>
+                <select id="algorithm" name="algorithm">
+                  <option value="auto">auto</option>
+                  <option value="linear">linear</option>
+                  <option value="moving_avg">moving_avg</option>
+                  <option value="exponential">exponential</option>
+                  <option value="holt">holt</option>
+                  <option value="seasonal">seasonal</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="actions">
+              <button id="runButton" type="submit">Tahmin Uret</button>
+              <span id="generatedAt" class="generated-at">Henuz sonuc yok</span>
+            </div>
+          </form>
+        </section>
+
+        <section class="result-grid reveal">
+          <article class="card summary-card">
+            <h2>Ozet</h2>
+            <dl class="summary-list">
+              <div>
+                <dt>Algoritma</dt>
+                <dd id="metaAlgorithm">-</dd>
+              </div>
+              <div>
+                <dt>MAPE</dt>
+                <dd id="metaMape">-</dd>
+              </div>
+              <div>
+                <dt>History Used</dt>
+                <dd id="metaHistory">-</dd>
+              </div>
+              <div>
+                <dt>Cache</dt>
+                <dd id="metaCached">-</dd>
+              </div>
+            </dl>
+          </article>
+
+          <article class="card chart-card">
+            <h2>Tahmin Egrisi</h2>
+            <canvas id="forecastChart" aria-label="Forecast cizelgesi" role="img"></canvas>
+          </article>
+        </section>
+
+        <section class="card table-card reveal">
+          <h2>Aylik Noktalar</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Ay</th>
+                  <th>Tahmin</th>
+                  <th>Alt CI</th>
+                  <th>Ust CI</th>
+                </tr>
+              </thead>
+              <tbody id="pointsTableBody">
+                <tr>
+                  <td colspan="4" class="empty">Tahmin olusturuldugunda noktalar burada listelenecek.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="forecastErrorBox" class="error-box" hidden></section>
+      </section>
+
+      <section id="analyticsView" class="view" hidden>
+        <section class="analytics-control-grid reveal">
+          <article class="card analytics-control-card">
+            <h2>Cross Project Summary</h2>
+            <form id="crossSummaryForm" class="mini-form">
+              <label class="field">
+                <span>Start Month</span>
+                <input id="crossStartMonth" type="date" value="2026-01-01" required />
+              </label>
+              <label class="field">
+                <span>End Month</span>
+                <input id="crossEndMonth" type="date" value="2026-03-01" required />
+              </label>
+              <button id="crossSummaryButton" type="submit">Getir</button>
+            </form>
+          </article>
+
+          <article class="card analytics-control-card">
+            <h2>VM Type Trend</h2>
+            <form id="vmTrendForm" class="mini-form">
+              <label class="field">
+                <span>Project ID</span>
+                <input id="vmTrendProjectId" type="text" minlength="3" value="proj-abc" required />
+              </label>
+              <label class="field">
+                <span>Months</span>
+                <input id="vmTrendMonths" type="number" min="1" max="36" value="12" required />
+              </label>
+              <button id="vmTrendButton" type="submit">Getir</button>
+            </form>
+          </article>
+
+          <article class="card analytics-control-card">
+            <h2>Forecast Accuracy</h2>
+            <form id="accuracyForm" class="mini-form">
+              <label class="field">
+                <span>Project ID</span>
+                <input id="accuracyProjectId" type="text" minlength="3" value="proj-abc" required />
+              </label>
+              <label class="field">
+                <span>Limit</span>
+                <input id="accuracyLimit" type="number" min="1" max="100" value="20" required />
+              </label>
+              <button id="accuracyButton" type="submit">Getir</button>
+            </form>
+          </article>
+        </section>
+
+        <section class="card chart-card reveal">
+          <h2 id="analyticsChartTitle">Analytics Grafik</h2>
+          <canvas id="analyticsChart" aria-label="Analytics cizelgesi" role="img"></canvas>
+        </section>
+
+        <section class="card table-card reveal">
+          <h2 id="analyticsTitle">Analytics Sonuclari</h2>
+          <div class="table-wrap">
+            <table>
+              <thead id="analyticsHead">
+                <tr>
+                  <th>Alan</th>
+                  <th>Deger</th>
+                </tr>
+              </thead>
+              <tbody id="analyticsBody">
+                <tr>
+                  <td colspan="2" class="empty">Bir analytics sorgusu calistirdiginizda sonuc burada gozukecek.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="analyticsErrorBox" class="error-box" hidden></section>
+      </section>
+    </main>
+
+    <script src="/static/app.js" defer></script>
+  </body>
+</html>
